@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Concept Chef — Ultimate</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    
+    /* Cloze Input Styling */
+    .cloze-input { 
+        border-bottom: 2px solid #2563eb; 
+        color: #2563eb; 
+        font-weight: 700; 
+        text-align: center; 
+        outline: none; 
+        background: transparent; 
+        transition: all 0.2s;
+    }
+    .cloze-input:focus { border-bottom-width: 3px; background: rgba(37, 99, 235, 0.1); }
+    .cloze-correct { color: #15803d !important; border-color: #15803d !important; background: #dcfce7 !important; }
+    .cloze-wrong { color: #b91c1c !important; border-color: #b91c1c !important; background: #fee2e2 !important; }
+    
+    /* Chat Animation */
+    #chat-window { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    .chat-hidden { transform: translateY(20px) scale(0.95); opacity: 0; pointer-events: none; }
+    .chat-visible { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
+    
+    /* Text Formatting */
+    b, strong { color: #1e3a8a; font-weight: 800; }
+  </style>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral', flowchart: { curve: 'basis' } });
+    
+    window.renderMermaid = async (graph) => {
+      const el = document.querySelector('#mermaid-graph');
+      el.innerHTML = ''; // Clear previous graph
+      try { 
+          // Render SVG
+          const { svg } = await mermaid.render('graphDiv', graph); 
+          el.innerHTML = svg; 
+          
+          // Force SVG to fit container nicely
+          const svgElement = el.querySelector('svg');
+          svgElement.style.maxWidth = '100%';
+          svgElement.style.height = 'auto';
+          svgElement.style.minHeight = '400px';
+      } 
+      catch (e) { 
+          el.innerHTML = '<div class="text-red-500 font-bold p-4 border border-red-200 bg-red-50 rounded">Map Syntax Error: The AI generated an invalid graph structure. Try generating again.</div>'; 
+          console.error(e);
+      }
+    };
+  </script>
+</head>
+<body class="bg-[#F3F4F6] text-gray-800 h-screen flex overflow-hidden">
+
+  <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col z-20 shadow-sm">
+    <div class="p-6 border-b border-gray-100 flex items-center gap-3 font-bold text-lg text-blue-900">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg text-white flex items-center justify-center shadow-blue-200 shadow-md">
+            <i class="fa-solid fa-brain"></i>
+        </div> 
+        Concept Chef
+    </div>
+    <nav class="p-4 space-y-1">
+      <button onclick="showSection('dashboard')" id="nav-dashboard" class="nav-btn w-full text-left p-3 rounded-xl font-medium transition flex items-center gap-3 text-gray-600 hover:bg-gray-50">
+          <i class="fa-solid fa-rocket w-5"></i> Dashboard
+      </button>
+      <button onclick="showSection('xray')" id="nav-xray" class="nav-btn w-full text-left p-3 rounded-xl font-medium transition flex items-center gap-3 text-gray-600 hover:bg-gray-50">
+          <i class="fa-solid fa-layer-group w-5"></i> X-Ray Mode
+      </button>
+      <button onclick="showSection('mix')" id="nav-mix" class="nav-btn w-full text-left p-3 rounded-xl font-medium transition flex items-center gap-3 text-gray-600 hover:bg-gray-50">
+          <i class="fa-solid fa-list-ul w-5"></i> The Mix
+      </button>
+      <button onclick="showSection('map')" id="nav-map" class="nav-btn w-full text-left p-3 rounded-xl font-medium transition flex items-center gap-3 text-gray-600 hover:bg-gray-50">
+          <i class="fa-solid fa-project-diagram w-5"></i> Mind Map
+      </button>
+      <button onclick="showSection('quiz')" id="nav-quiz" class="nav-btn w-full text-left p-3 rounded-xl font-medium transition flex items-center gap-3 text-gray-600 hover:bg-gray-50">
+          <i class="fa-solid fa-gamepad w-5"></i> Quiz Arena
+      </button>
+    </nav>
+  </aside>
+
+  <main class="flex-1 overflow-y-auto relative p-4 md:p-8 scroll-smooth">
+    
+    <section id="section-dashboard" class="max-w-4xl mx-auto pt-6 animate-fade-in">
+      <div class="text-center mb-10">
+          <h2 class="text-4xl font-extrabold mb-2 text-gray-900">Study <span class="text-blue-600">Mastery.</span></h2>
+          <p class="text-gray-500">Upload your source. We handle the rest.</p>
+      </div>
+      
+      <div class="bg-white rounded-3xl shadow-xl p-6 border border-white">
+        <div class="flex gap-2 mb-6 bg-gray-100 p-1.5 rounded-2xl">
+            <button onclick="switchTab('youtube')" class="flex-1 py-2.5 rounded-xl bg-white shadow-sm text-blue-600 font-bold tab-btn transition" id="tab-youtube">YouTube</button>
+            <button onclick="switchTab('pdf')" class="flex-1 py-2.5 rounded-xl text-gray-500 font-bold tab-btn hover:text-gray-700 transition" id="tab-pdf">PDF</button>
+            <button onclick="switchTab('text')" class="flex-1 py-2.5 rounded-xl text-gray-500 font-bold tab-btn hover:text-gray-700 transition" id="tab-text">Text</button>
+            <button onclick="switchTab('gemini')" class="flex-1 py-2.5 rounded-xl text-gray-500 font-bold tab-btn hover:text-purple-600 transition" id="tab-gemini"><i class="fa-solid fa-sparkles text-purple-400"></i> Gemini</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase ml-1">Persona</label>
+                <select id="global-persona" class="w-full p-3 bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
+                    <option value="Strict Examiner">Strict Examiner</option>
+                    <option value="Standard Tutor">Standard Tutor</option>
+                    <option value="Explain Like I'm 5">Explain Like I'm 5</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase ml-1">Questions</label>
+                <input id="global-qcount" type="number" value="5" class="w-full p-3 bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-100">
+            </div>
+        </div>
+
+        <form id="form-youtube" onsubmit="handleForm(event)">
+            <input type="hidden" name="source_type" value="youtube">
+            <input name="url" type="url" placeholder="Paste YouTube Link here..." class="w-full p-4 bg-gray-50 rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-500 transition" required>
+            <div class="flex gap-3">
+                <button type="submit" onclick="setMode('standard')" class="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200">Standard Mix</button>
+                <button type="submit" onclick="setMode('layered')" class="flex-1 bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 transition shadow-lg shadow-gray-200"><i class="fa-solid fa-layer-group mr-2"></i> X-Ray Mode</button>
+            </div>
+        </form>
+
+        <form id="form-pdf" class="hidden" onsubmit="handleForm(event)">
+            <input type="hidden" name="source_type" value="pdf">
+            <div class="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center mb-4 cursor-pointer hover:bg-gray-50 relative transition">
+                <input name="file" type="file" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer" required>
+                <div class="pointer-events-none text-gray-500"><i class="fa-solid fa-cloud-arrow-up text-3xl mb-2 text-blue-400"></i><br>Click to Upload PDF</div>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" onclick="setMode('standard')" class="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200">Standard Mix</button>
+                <button type="submit" onclick="setMode('layered')" class="flex-1 bg-black text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-200">X-Ray Mode</button>
+            </div>
+        </form>
+
+        <form id="form-text" class="hidden" onsubmit="handleForm(event)">
+            <input type="hidden" name="source_type" value="text">
+            <textarea name="text_content" placeholder="Paste your notes here..." class="w-full p-4 bg-gray-50 rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-500 h-32 transition" required></textarea>
+            <div class="flex gap-3">
+                <button type="submit" onclick="setMode('standard')" class="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200">Standard Mix</button>
+                <button type="submit" onclick="setMode('layered')" class="flex-1 bg-black text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-200">X-Ray Mode</button>
+            </div>
+        </form>
+
+        <form id="form-gemini" class="hidden" onsubmit="handleForm(event)">
+            <input type="hidden" name="source_type" value="gemini">
+            <div class="bg-purple-50 text-purple-800 p-3 rounded-xl text-sm mb-2 font-medium border border-purple-100 flex items-center">
+                <i class="fa-solid fa-circle-info mr-2"></i> Tip: Go to Gemini, Ctrl+A, Ctrl+C, then Paste below.
+            </div>
+            <textarea name="text_content" placeholder="User: ... AI: ..." class="w-full p-4 bg-gray-50 rounded-xl mb-4 outline-none focus:ring-2 focus:ring-purple-500 h-32 font-mono text-sm transition" required></textarea>
+            <div class="flex gap-3">
+                <button type="submit" onclick="setMode('standard')" class="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200">Standard Mix</button>
+                <button type="submit" onclick="setMode('layered')" class="flex-1 bg-black text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-200">X-Ray Mode</button>
+            </div>
+        </form>
+        
+        <div id="loader" class="hidden text-center mt-6">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"></div>
+            <p class="text-blue-600 font-bold mt-2 animate-pulse">Cooking Concepts...</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-xray" class="hidden h-full flex flex-col">
+        <div class="bg-white p-6 rounded-3xl shadow-sm mb-6 sticky top-0 z-10 border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-2xl text-gray-900 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-blue-600"></i> X-Ray Mode
+                </h2>
+                <button onclick="showSection('dashboard')" class="text-gray-400 hover:text-black transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <input type="range" min="1" max="4" value="1" class="w-full accent-blue-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="renderXRay(this.value)">
+            <div class="flex justify-between text-xs font-bold text-gray-400 uppercase mt-2 tracking-wider">
+                <span>1. Skeleton</span>
+                <span>2. Structure</span>
+                <span>3. Logic</span>
+                <span>4. Mastery</span>
+            </div>
+        </div>
+        <div id="xray-content" class="space-y-6 pb-20">
+            </div>
+    </section>
+
+    <section id="section-mix" class="hidden flex flex-col lg:flex-row gap-8 pb-20">
+        <div class="lg:w-2/3 space-y-6">
+            <div id="media-box" class="bg-black aspect-video rounded-2xl text-white flex items-center justify-center shadow-lg overflow-hidden">
+                Media Content
+            </div>
+            
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-xl mb-4 flex items-center gap-2 text-gray-800">
+                    <i class="fa-solid fa-list-ul text-blue-500"></i> Summary
+                </h3>
+                <ul id="summary-list" class="list-disc pl-5 space-y-3 text-gray-600 leading-relaxed"></ul>
+            </div>
+        </div>
+
+        <div class="lg:w-1/3 flex flex-col gap-6">
+            <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 shadow-sm">
+                <h3 class="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-blue-600"></i> <span id="analogy-title">Analogy</span>
+                </h3>
+                <div id="analogy-content" class="text-blue-800 text-sm leading-relaxed"></div>
+            </div>
+            
+            <button onclick="showSection('map')" class="w-full py-4 bg-white border-2 border-gray-100 text-gray-700 rounded-2xl font-bold shadow-sm hover:border-blue-500 hover:text-blue-600 transition flex items-center justify-center gap-2 group">
+                <i class="fa-solid fa-project-diagram group-hover:scale-110 transition"></i> View Full Mind Map
+            </button>
+            <button onclick="showSection('quiz')" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 hover:shadow-xl transition flex items-center justify-center gap-2 group">
+                <i class="fa-solid fa-gamepad group-hover:scale-110 transition"></i> Enter Quiz Arena
+            </button>
+        </div>
+    </section>
+
+    <section id="section-map" class="hidden h-full flex flex-col pb-10">
+        <div class="flex items-center mb-4">
+            <button onclick="showSection('mix')" class="mr-4 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-100 transition text-gray-600">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h2 class="text-3xl font-bold text-gray-900">Concept Map</h2>
+        </div>
+        <div class="flex-1 bg-white rounded-3xl shadow-sm border border-gray-100 p-8 overflow-auto flex justify-center items-start">
+            <div id="mermaid-graph" class="w-full flex justify-center"></div>
+        </div>
+    </section>
+
+    <section id="section-quiz" class="hidden max-w-3xl mx-auto space-y-8 pb-32">
+        <div class="text-center pt-4">
+            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Active Recall Protocol</span>
+            <h2 class="text-3xl font-bold mt-2 text-gray-900">Quiz Arena</h2>
+        </div>
+        <div id="quiz-container" class="space-y-6">
+            </div>
+    </section>
+
+  </main>
+
+  <div class="fixed bottom-6 right-6 flex flex-col items-end z-50">
+    <button onclick="toggleChat()" class="w-16 h-16 bg-blue-900 text-white rounded-full shadow-2xl text-2xl hover:scale-105 transition flex items-center justify-center z-50">
+        <i class="fa-solid fa-comment-dots"></i>
+    </button>
+    
+    <div id="chat-window" class="chat-hidden absolute bottom-24 right-0 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col h-[600px] overflow-hidden">
+        <div class="flex border-b border-gray-200 bg-gray-50">
+            <button onclick="setChatMode('tutor')" id="chat-tab-tutor" class="flex-1 py-4 font-bold text-blue-600 bg-white border-b-2 border-blue-600 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-robot"></i> Tutor
+            </button>
+            <button onclick="setChatMode('examiner')" id="chat-tab-examiner" class="flex-1 py-4 font-bold text-gray-400 bg-gray-50 border-b-2 border-transparent hover:text-gray-600 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-user-graduate"></i> Examiner
+            </button>
+            <button onclick="toggleChat()" class="px-5 text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div id="chat-msgs" class="flex-1 p-4 overflow-y-auto space-y-4 bg-white text-sm">
+            <div class="text-center text-xs text-gray-400 mt-4">AI Ready. Switch tabs to change personality.</div>
+        </div>
+        
+        <form onsubmit="sendChat(event)" class="p-3 bg-white border-t border-gray-100 flex gap-2">
+            <input id="chat-in" type="text" class="flex-1 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition" placeholder="Type your message..." autocomplete="off">
+            <button class="bg-blue-600 text-white px-5 rounded-xl hover:bg-blue-700 transition font-bold">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+  </div>
+
+  <script>
+    let sessId = null;
+    let chatMode = 'tutor';
+    let currentGenMode = 'standard';
+    let xrayData = null;
+
+    // --- UTILS ---
+    const fmt = (t) => t ? t.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>') : '';
+
+    // --- NAVIGATION ---
+    function showSection(id) {
+        // Hide all sections
+        ['dashboard','xray','mix','quiz','map'].forEach(s => {
+            const el = document.getElementById(`section-${s}`);
+            if(el) el.classList.add('hidden');
+        });
+        
+        // Show target
+        document.getElementById(`section-${id}`).classList.remove('hidden');
+        
+        // Update Sidebar styling
+        document.querySelectorAll('.nav-btn').forEach(b => {
+            b.classList.remove('bg-blue-50', 'text-blue-700');
+            b.classList.add('text-gray-600', 'hover:bg-gray-50');
+        });
+        const activeBtn = document.getElementById(`nav-${id}`);
+        if(activeBtn) {
+            activeBtn.classList.remove('text-gray-600', 'hover:bg-gray-50');
+            activeBtn.classList.add('bg-blue-50', 'text-blue-700');
+        }
+    }
+
+    // --- TABS & FORM ---
+    function switchTab(t) {
+        ['youtube','pdf','text','gemini'].forEach(x => {
+            document.getElementById(`form-${x}`).classList.add('hidden');
+            const btn = document.getElementById(`tab-${x}`);
+            btn.classList.remove('bg-white','shadow-sm','text-blue-600','text-purple-600');
+            btn.classList.add('text-gray-500');
+        });
+        document.getElementById(`form-${t}`).classList.remove('hidden');
+        const active = document.getElementById(`tab-${t}`);
+        active.classList.add('bg-white','shadow-sm');
+        active.classList.remove('text-gray-500');
+        if(t==='gemini') active.classList.add('text-purple-600'); else active.classList.add('text-blue-600');
+    }
+
+    function setMode(m) { currentGenMode = m; }
+
+    async function handleForm(e) {
+        e.preventDefault();
+        document.getElementById('loader').classList.remove('hidden');
+        const fd = new FormData(e.target);
+        fd.append('style', document.getElementById('global-persona').value);
+        fd.append('q_count', document.getElementById('global-qcount').value);
+        fd.append('gen_mode', currentGenMode);
+
+        try {
+            const res = await fetch('/generate', {method:'POST', body:fd});
+            const d = await res.json();
+            
+            if(d.status === 'success') {
+                sessId = d.session_id;
+                
+                if(d.mode === 'layered') { 
+                    xrayData = d.data; 
+                    renderXRay(1); 
+                    showSection('xray'); 
+                } else { 
+                    renderMix(d.data, d.video_id); 
+                    showSection('mix'); 
+                }
+            } else { 
+                alert("Error: " + d.message); 
+            }
+        } catch(err) { 
+            alert("Server Error: " + err.message); 
+        } finally { 
+            document.getElementById('loader').classList.add('hidden'); 
+        }
+    }
+
+    // --- RENDERERS ---
+    function renderMix(d, vid) {
+        // Text Content
+        document.getElementById('summary-list').innerHTML = d.summary.map(s=>`<li>${fmt(s)}</li>`).join('');
+        document.getElementById('analogy-title').innerText = d.analogy_title || "Analogy";
+        document.getElementById('analogy-content').innerHTML = fmt(d.analogy_content);
+        
+        // Mind Map (Render to the dedicated map section, not mix)
+        if(d.mind_map && window.renderMermaid) {
+            window.renderMermaid(d.mind_map); 
+        }
+        
+        // Media Embed
+        const mb = document.getElementById('media-box');
+        if(vid) {
+            mb.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${vid}" frameborder="0" allowfullscreen class="w-full h-full"></iframe>`;
+        } else {
+            mb.innerHTML = `<div class="text-center p-10 text-gray-400"><i class="fa-solid fa-file-lines text-5xl mb-3"></i><p>Processed Text Content</p></div>`;
+        }
+
+        // Quiz
+        const qc = document.getElementById('quiz-container');
+        qc.innerHTML = '';
+        d.quiz.forEach((q,i) => {
+            let html = `<div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 transition hover:shadow-md">
+                <h3 class="font-bold mb-4 text-lg text-gray-800 flex gap-2"><span class="text-blue-500">Q${i+1}.</span> ${q.question}</h3>`;
+            
+            if(q.type === 'mcq' || q.options) {
+                // MCQ Layout
+                html += `<div class="grid gap-2">` + 
+                    q.options.map((o,idx) => 
+                        `<button onclick="check(this, ${idx===q.answer_index})" class="block w-full text-left p-4 border border-gray-200 rounded-xl hover:bg-blue-50 transition font-medium text-gray-600">${o}</button>`
+                    ).join('') + `</div>`;
+            } else {
+                // Cloze Layout
+                const sentence = q.sentence_with_blank.replace('____', `<input class="cloze-input w-40 mx-1" data-ans="${q.answer}" autocomplete="off" placeholder="?">`);
+                html += `<div class="text-xl leading-loose font-medium text-gray-700 bg-gray-50 p-6 rounded-2xl border border-gray-100">${sentence}</div>
+                         <button onclick="checkCloze(this)" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">Check Answer</button>`;
+            }
+            html += `<div class="feedback hidden mt-4 text-sm p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100"></div></div>`;
+            qc.innerHTML += html;
+        });
+    }
+
+    function renderXRay(lvl) {
+        const c = document.getElementById('xray-content');
+        c.innerHTML = xrayData.map(t => {
+            let h = `<div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 transition-all duration-500">
+                     <h1 class="text-3xl font-extrabold mb-6 text-gray-900 border-b pb-4">${t.heading}</h1>`;
+            
+            if(lvl >= 2) t.subsections.forEach(s => {
+                h += `<div class="mb-8 last:mb-0">
+                        <h2 class="text-xl font-bold text-blue-700 flex items-center mb-2">
+                            <i class="fa-solid fa-angle-right mr-2 text-sm opacity-50"></i> ${s.subheading}
+                        </h2>`;
+                
+                if(lvl >= 3) h += `<div class="bg-blue-50 p-4 rounded-xl text-blue-900 font-medium border-l-4 border-blue-500 my-3 shadow-sm text-sm">
+                                    <i class="fa-solid fa-bolt mr-2 text-blue-500"></i> ${s.layer_3_concept}
+                                   </div>`;
+                
+                if(lvl >= 4) h += `<p class="text-gray-600 leading-relaxed pl-4 border-l-2 border-gray-200 mt-2 text-base">${fmt(s.layer_4_detail)}</p>`;
+                
+                h += `</div>`;
+            });
+            
+            if(lvl < 2) h += `<div class="text-center text-gray-400 italic py-4">Slide slider to Level 2 to reveal structure...</div>`;
+            return h + `</div>`;
+        }).join('');
+    }
+
+    // --- QUIZ LOGIC ---
+    window.check = (b, corr) => {
+        const fb = b.parentElement.parentElement.lastElementChild;
+        fb.classList.remove('hidden');
+        const allBtns = b.parentElement.children;
+        // Disable all
+        for(let btn of allBtns) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
+        b.classList.remove('opacity-50');
+        
+        if(corr) { 
+            b.classList.add('bg-green-100','border-green-500','text-green-800'); 
+            fb.innerHTML = `<strong class="text-green-700"><i class="fa-solid fa-check"></i> Correct!</strong>`;
+            fb.className = "feedback mt-4 text-sm p-4 bg-green-50 text-green-800 rounded-xl border border-green-200";
+        } else { 
+            b.classList.add('bg-red-100','border-red-500','text-red-800'); 
+            fb.innerHTML = `<strong class="text-red-700"><i class="fa-solid fa-xmark"></i> Incorrect.</strong>`;
+            fb.className = "feedback mt-4 text-sm p-4 bg-red-50 text-red-800 rounded-xl border border-red-200";
+        }
+    };
+
+    window.checkCloze = (b) => {
+        const i = b.previousElementSibling.querySelector('input');
+        const fb = b.nextElementSibling;
+        fb.classList.remove('hidden');
+        const ans = i.dataset.ans;
+        
+        if(i.value.trim().toLowerCase().includes(ans.toLowerCase())) {
+            i.classList.add('cloze-correct'); 
+            fb.innerHTML = `<strong class="text-green-700">Perfect!</strong>`;
+            fb.className = "feedback mt-4 text-sm p-4 bg-green-50 text-green-800 rounded-xl border border-green-200";
+        } else {
+            i.classList.add('cloze-wrong'); 
+            fb.innerHTML = `<strong class="text-red-700">Answer: ${ans}</strong>`;
+            fb.className = "feedback mt-4 text-sm p-4 bg-red-50 text-red-800 rounded-xl border border-red-200";
+        }
+    };
+
+    // --- CHAT LOGIC ---
+    window.toggleChat = () => document.getElementById('chat-window').classList.toggle('chat-hidden');
+    
+    window.setChatMode = (m) => { 
+        chatMode = m;
+        const tabT = document.getElementById('chat-tab-tutor');
+        const tabE = document.getElementById('chat-tab-examiner');
+        const msgs = document.getElementById('chat-msgs');
+        
+        if(m === 'tutor') {
+            tabT.className = "flex-1 py-4 font-bold text-blue-600 bg-white border-b-2 border-blue-600 transition flex items-center justify-center gap-2";
+            tabE.className = "flex-1 py-4 font-bold text-gray-400 bg-gray-50 border-b-2 border-transparent transition hover:text-gray-600 flex items-center justify-center gap-2";
+            msgs.innerHTML += `<div class="text-center text-xs text-blue-500 my-4 font-bold tracking-widest uppercase opacity-70">-- Switched to Tutor Mode --</div>`;
+        } else {
+            tabE.className = "flex-1 py-4 font-bold text-black bg-white border-b-2 border-black transition flex items-center justify-center gap-2";
+            tabT.className = "flex-1 py-4 font-bold text-gray-400 bg-gray-50 border-b-2 border-transparent transition hover:text-gray-600 flex items-center justify-center gap-2";
+            msgs.innerHTML += `<div class="text-center text-xs text-black my-4 font-bold tracking-widest uppercase opacity-70">-- Switched to Examiner Mode --</div>`;
+        }
+        msgs.scrollTop = msgs.scrollHeight;
+    };
+    
+    async function sendChat(e) {
+        e.preventDefault();
+        const i = document.getElementById('chat-in');
+        const msg = i.value.trim();
+        if(!msg) return;
+        
+        const box = document.getElementById('chat-msgs');
+        const bubbleClass = chatMode === 'tutor' ? 'bg-blue-600 text-white' : 'bg-gray-900 text-white';
+        
+        // User Msg
+        box.innerHTML += `
+            <div class="flex justify-end mb-4">
+                <div class="${bubbleClass} px-5 py-3 rounded-2xl rounded-tr-none shadow-sm max-w-[85%] text-sm leading-relaxed">
+                    ${fmt(msg)}
+                </div>
+            </div>`;
+        i.value = ''; box.scrollTop = box.scrollHeight;
+
+        try {
+            const res = await fetch('/chat', {
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify({session_id:sessId, message:msg, mode:chatMode})
+            });
+            const d = await res.json();
+            
+            // AI Msg
+            const replyClass = chatMode === 'tutor' ? 'bg-blue-50 border border-blue-100 text-gray-800' : 'bg-white border border-gray-200 text-gray-800';
+            const icon = chatMode === 'tutor' ? '<i class="fa-solid fa-robot mr-2 text-blue-500"></i>' : '<i class="fa-solid fa-user-graduate mr-2 text-black"></i>';
+            
+            box.innerHTML += `
+                <div class="flex justify-start mb-4">
+                    <div class="${replyClass} px-5 py-4 rounded-2xl rounded-tl-none shadow-sm max-w-[90%] text-sm leading-relaxed">
+                        <div class="font-bold text-xs mb-1 opacity-50 uppercase tracking-wider">${icon} ${chatMode}</div>
+                        ${fmt(d.reply)}
+                    </div>
+                </div>`;
+            box.scrollTop = box.scrollHeight;
+        } catch(e) { console.error(e); }
+    }
+  </script>
+</body>
+</html>

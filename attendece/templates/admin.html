@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid my-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">Admin Panel - Attendance Report ({{ today }})</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for hour, data in attendance_data.items() %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card border-primary h-100">
+                                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                    <span>{{ data.hour_name }}</span>
+                                    <small>{{ data.present_count }} / {{ data.total_count }} Present</small>
+                                </div>
+                                <div class="card-body p-2">
+                                    {% if data.students %}
+                                        <div class="attendance-list" style="max-height: 250px; overflow-y: auto;">
+                                            {% for student in data.students %}
+                                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                                <small class="text-truncate">{{ student.roll_number }}</small>
+                                                <span class="badge {% if student.status == 'P' %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {{ student.status }}
+                                                </span>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted text-center mb-0">No students registered</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.attendance-list {
+    font-size: 0.85rem;
+}
+.attendance-list .border-bottom:last-child {
+    border-bottom: none !important;
+}
+</style>
+{% endblock %}

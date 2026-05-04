@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Scanner Section -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">QR Code Scanner - {{ roll_number }}</h4>
+                </div>
+                <div class="card-body text-center">
+                    {% if current_hour %}
+                        <div class="alert alert-info">
+                            <strong>Current Class:</strong> {{ schedule[current_hour].name }} 
+                            ({{ schedule[current_hour].start }} - {{ schedule[current_hour].end }})
+                        </div>
+                        <div id="qr-display">
+                            <p class="text-muted">Waiting for teacher to generate QR code...</p>
+                            <button id="scan-qr-btn" class="btn btn-primary">
+                                Scan QR Code
+                            </button>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <strong>No Active Class</strong><br>
+                            QR codes are only available during class hours.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Section -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Today's Schedule</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for hour, details in schedule.items() %}
+                        <div class="list-group-item {% if hour == current_hour %}list-group-item-success{% endif %}">
+                            <div class="d-flex justify-content-between">
+                                <h6 class="mb-1">{{ details.name }}</h6>
+                                {% if hour == current_hour %}
+                                    <span class="badge bg-success">Active</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ details.start }} - {{ details.end }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Input Modal -->
+<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrModalLabel">Enter QR Code Data</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="qr-form">
+                    <div class="mb-3">
+                        <label for="qr-data" class="form-label">QR Code Data</label>
+                        <textarea class="form-control" id="qr-data" rows="4" 
+                                placeholder="Paste QR code data here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Mark Attendance</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scanBtn = document.getElementById('scan-qr-btn');
+    const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
+    const qrForm = document.getElementById('qr-form');
+    
+    // Enable scan button only when in active class
+    {% if not current_hour %}
+        if (scanBtn) scanBtn.disabled = true;
+    {% endif %}
+    
+    if (scanBtn) {
+        scanBtn.addEventListener('click', function() {
+            qrModal.show();
+        });
+    }
+    
+    // Handle QR form submission
+    if (qrForm) {
+        qrForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const qrData = document.getElementById('qr-data').value.trim();
+            if (!qrData) {
+                alert('⚠ Please enter QR code data');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('qr_data', qrData);
+            
+            fetch('/mark_attendance', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    qrModal.hide();
+                    document.getElementById('qr-data').value = '';
+                    window.location.href = '/attend_confirm';
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('⚠ Failed to mark attendance. Try again.');
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
