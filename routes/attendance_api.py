@@ -49,6 +49,14 @@ def init_db():
             FOREIGN KEY (usn) REFERENCES Users (usn)
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS Leaves (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            teacher_id TEXT NOT NULL,
+            date TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -327,17 +335,56 @@ def mark_attendance(usn, session, device_id, token):
     resp.set_cookie("user_usn", usn, max_age=31536000)
     return resp
 
+@attendance_bp.route("/take_leave", methods=["POST"])
+def take_leave():
+    if session.get('role') != 'faculty':
+        flash("Unauthorized access. Only faculty can take leave.")
+        return redirect(url_for('index'))
+    
+    init_db()
+    teacher_id = session.get('id')
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM Leaves WHERE teacher_id = ? AND date = ?', (teacher_id, today_date))
+    if c.fetchone():
+        msg = "⚠️ You have already marked yourself ON LEAVE for today."
+    else:
+        c.execute('INSERT INTO Leaves (teacher_id, date) VALUES (?, ?)', (teacher_id, today_date))
+        conn.commit()
+        msg = f"✅ Success. Teacher {teacher_id} is marked ON LEAVE for {today_date}."
+    conn.close()
+    
+    return render_template_string(SUCCESS_TEMPLATE + "<br><a href='/'>Return to Dashboard</a>", message=msg)
+
 @attendance_bp.route("/admin")
 def admin():
+    if session.get('role') != 'admin':
+        flash("Unauthorized access.")
+        return redirect(url_for('index'))
+
     init_db()
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT * FROM Attendance ORDER BY timestamp DESC')
-    rows = c.fetchall()
     
-    html = "<h2>Attendance Logs</h2><table border='1'><tr><th>USN</th><th>Session</th><th>Status</th><th>Timestamp</th></tr>"
-    for row in rows:
+    c.execute('SELECT * FROM Attendance ORDER BY timestamp DESC')
+    att_rows = c.fetchall()
+    
+    c.execute('SELECT * FROM Leaves ORDER BY timestamp DESC')
+    leave_rows = c.fetchall()
+    
+    html = "<h2>Teacher Leaves</h2><table border='1'><tr><th>Teacher ID</th><th>Date</th><th>Status</th><th>Timestamp</th></tr>"
+    for row in leave_rows:
+        html += f"<tr><td>{row['teacher_id']}</td><td>{row['date']}</td><td style='color:red;font-weight:bold;'>ON Leave</td><td>{row['timestamp']}</td></tr>"
+    if not leave_rows:
+        html += "<tr><td colspan='4'>No teachers on leave.</td></tr>"
+    html += "</table><br><hr><br>"
+    
+    html += "<h2>Attendance Logs</h2><table border='1'><tr><th>USN</th><th>Session</th><th>Status</th><th>Timestamp</th></tr>"
+    for row in att_rows:
         html += f"<tr><td>{row['usn']}</td><td>{row['session']}</td><td>{row['status']}</td><td>{row['timestamp']}</td></tr>"
     html += "</table>"
+    
     conn.close()
     return html

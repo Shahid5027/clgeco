@@ -53,7 +53,31 @@
                 </div>
                 <div class="module-action">↳ INITIATE</div>
             </a>
-            {% elif session.get('role') == 'student' %}
+            {% endif %}
+
+            {% if session.get('role') == 'faculty' %}
+            <form action="/attendance/take_leave" method="POST" style="display: contents;">
+                <button type="submit" class="module-card observe-me" style="width:100%; border:none; text-align:left; font-family:inherit; cursor:pointer; appearance:none;">
+                    <div>
+                        <h2 class="module-title" style="color:#d9534f;">TAKE_LEAVE</h2>
+                        <span class="module-desc border-bottom">MARK AS ABSENT</span>
+                    </div>
+                    <div class="module-action">↳ SUBMIT</div>
+                </button>
+            </form>
+            {% endif %}
+
+            {% if session.get('role') == 'admin' %}
+            <a href="/attendance/admin" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title" style="color:#f0ad4e;">ADMIN_PANEL</h2>
+                    <span class="module-desc border-bottom">SYSTEM LOGS</span>
+                </div>
+                <div class="module-action">↳ VIEW</div>
+            </a>
+            {% endif %}
+
+            {% if session.get('role') == 'student' %}
             <a href="/attendance/" class="module-card observe-me">
                 <div>
                     <h2 class="module-title">ATTENDANCE</h2>
