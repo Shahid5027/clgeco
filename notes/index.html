@@ -49,7 +49,10 @@
 
     <!-- Recently Viewed -->
     <section class="recent-section" id="recent-section" style="display:none">
-      <h2 class="section-title">Recently Viewed</h2>
+      <div class="recent-header-row">
+        <h2 class="section-title">Recently Viewed</h2>
+        <button class="clear-recent-btn" onclick="clearRecentlyViewed()">Clear</button>
+      </div>
       <div class="recent-scroll" id="recent-scroll"></div>
     </section>
 
@@ -105,8 +108,9 @@
         <textarea class="form-textarea" id="note-content-input" placeholder="Write or paste your note content here..." required></textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Or attach a file (mock)</label>
-        <input class="form-input" type="file" id="note-file-input" style="padding:10px">
+        <label class="form-label">Attach a PDF file</label>
+        <input class="form-input" type="file" id="note-file-input" accept="application/pdf" style="padding:10px">
+        <div class="hint-text">Only PDF files are supported for attachment.</div>
       </div>
       <button class="submit-btn" type="submit" id="submit-btn-text">Upload Note</button>
     </form>

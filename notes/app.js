@@ -4,6 +4,8 @@ let currentFilter = 'all';
 let searchQuery = '';
 let favorites = JSON.parse(localStorage.getItem('noteFavorites') || '[]');
 let recentlyViewed = JSON.parse(localStorage.getItem('noteRecent') || '[]');
+let lastDeletedNote = null;
+let undoToastTimer = null;
 
 // ===== MOCK DATA =====
 const subjectClass = { 'Mathematics':'subject-math','Science':'subject-science','English':'subject-english','History':'subject-history','Computer Science':'subject-cs' };
@@ -82,10 +84,24 @@ const quizzes = {
 
 // ===== HELPERS =====
 function getSubjectClass(s) { return subjectClass[s] || 'subject-default'; }
-function showToast(msg) {
+function showToast(msg, actionLabel, actionCallback) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+  clearTimeout(undoToastTimer);
+  t.innerHTML = `<span>${msg}</span>`;
+
+  if (actionLabel && actionCallback) {
+    const button = document.createElement('button');
+    button.className = 'toast-action';
+    button.textContent = actionLabel;
+    button.onclick = () => {
+      actionCallback();
+      t.classList.remove('show');
+    };
+    t.appendChild(button);
+  }
+
+  t.classList.add('show');
+  undoToastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 // ===== ROLE TOGGLE =====
@@ -142,6 +158,7 @@ function renderNotes() {
         <span class="note-card-date">📅 ${formatDate(n.date)}</span>
         <span class="note-card-author"><span class="author-avatar">${n.author[0]}</span>${n.author}</span>
       </div>
+      ${n.file ? `<div class="note-file-tag">📎 ${n.file.name}</div>` : ''}
       ${currentRole==='teacher'?`<div class="card-actions">
         <button class="card-action-btn" onclick="event.stopPropagation();editNote(${n.id})">✏️ Edit</button>
         <button class="card-action-btn delete" onclick="event.stopPropagation();deleteNote(${n.id})">🗑️ Delete</button>
@@ -169,6 +186,13 @@ function renderRecent() {
       <div class="recent-card-meta">${n.subject} · ${formatDate(n.date)}</div>
     </div>
   `).join('');
+}
+
+function clearRecentlyViewed() {
+  recentlyViewed = [];
+  localStorage.removeItem('noteRecent');
+  renderNotes();
+  showToast('Recently viewed cleared');
 }
 
 // ===== FAVORITES =====
@@ -203,6 +227,16 @@ function openNote(id) {
       <span>${formatDate(note.date)}</span>
     </div>
     <div class="detail-body">${note.content}</div>
+    ${note.file ? `
+      <div class="detail-file-box">
+        <div class="detail-file-name">📎 ${note.file.name}</div>
+        <div class="detail-file-actions">
+          <a class="detail-file-link" href="${note.file.url}" target="_blank" rel="noopener">Open</a>
+          <a class="detail-file-link download" href="${note.file.url}" download="${note.file.name}">Download</a>
+        </div>
+        ${note.file.type === 'application/pdf' ? `<iframe class="note-pdf-preview" src="${note.file.url}"></iframe>` : ''}
+      </div>
+    ` : ''}
     <div id="ai-container"></div>
   `;
 
@@ -296,22 +330,41 @@ function handleSubmitNote(e) {
   const title = document.getElementById('note-title-input').value;
   const subject = document.getElementById('note-subject-input').value;
   const raw = document.getElementById('note-content-input').value;
+  const fileInput = document.getElementById('note-file-input');
   const contentHTML = raw.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('');
+
+  let fileData = null;
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    fileData = {
+      name: file.name,
+      type: file.type,
+      url: URL.createObjectURL(file)
+    };
+  }
 
   if (editId) {
     const note = notesData.find(n => n.id === parseInt(editId));
     if (note) {
-      note.title = title; note.subject = subject; note.preview = raw.substring(0,150);
+      note.title = title;
+      note.subject = subject;
+      note.preview = raw.substring(0,150);
       note.content = contentHTML;
+      if (fileData) note.file = fileData;
       showToast('Note updated successfully ✅');
     }
   } else {
     const newNote = {
-      id: Date.now(), title, subject, author: 'You (Teacher)',
-      date: new Date().toISOString().split('T')[0], preview: raw.substring(0,150),
+      id: Date.now(),
+      title,
+      subject,
+      author: 'You (Teacher)',
+      date: new Date().toISOString().split('T')[0],
+      preview: raw.substring(0,150),
       content: contentHTML,
       summary: 'AI summary will be generated for this note.',
-      explanation: 'AI explanation will be generated for this note.'
+      explanation: 'AI explanation will be generated for this note.',
+      file: fileData
     };
     notesData.unshift(newNote);
     showToast('Note uploaded successfully 🎉');
@@ -322,8 +375,22 @@ function handleSubmitNote(e) {
 
 function deleteNote(id) {
   if (!confirm('Are you sure you want to delete this note?')) return;
+  const index = notesData.findIndex(n => n.id === id);
+  if (index === -1) return;
+
+  lastDeletedNote = { note: notesData[index], index };
   notesData = notesData.filter(n => n.id !== id);
-  showToast('Note deleted 🗑️');
+  showToast('Note deleted 🗑️', 'Undo', undoDelete);
+  renderNotes();
+}
+
+function undoDelete() {
+  if (!lastDeletedNote) return;
+  const { note, index } = lastDeletedNote;
+  const insertIndex = Math.min(Math.max(index, 0), notesData.length);
+  notesData.splice(insertIndex, 0, note);
+  lastDeletedNote = null;
+  showToast('Undo successful ✅');
   renderNotes();
 }
 

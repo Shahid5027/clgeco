@@ -204,6 +204,21 @@ body {
 
 /* Recently Viewed */
 .recent-section { margin-bottom: 36px; }
+.recent-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.clear-recent-btn {
+  padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: 999px; background: transparent;
+  color: var(--text-secondary); font-size: 0.85rem;
+  cursor: pointer; transition: var(--transition);
+}
+.clear-recent-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
 .recent-scroll {
   display: flex; gap: 14px; overflow-x: auto;
   padding-bottom: 8px; scrollbar-width: thin;
@@ -408,12 +423,50 @@ body {
 .toast {
   position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(100px);
   background: var(--bg-card); border: 1px solid var(--border);
-  padding: 12px 24px; border-radius: var(--radius-md);
+  padding: 12px 18px; border-radius: var(--radius-md);
   color: var(--text-primary); font-size: 0.9rem;
   box-shadow: var(--shadow-md); z-index: 999;
-  transition: transform 0.3s ease; pointer-events: none;
+  transition: transform 0.3s ease; pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 10px;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+.toast-action {
+  border: 1px solid transparent; background: var(--accent); color: #fff;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  font-size: 0.85rem; transition: background 0.2s ease;
+}
+.toast-action:hover { background: var(--accent-light); }
+
+.detail-file-box {
+  margin: 18px 0 8px;
+  padding: 16px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); background: var(--bg-card);
+}
+.detail-file-name {
+  font-size: 0.95rem; margin-bottom: 10px; color: var(--text-primary);
+}
+.detail-file-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.detail-file-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 999px;
+  background: var(--accent); color: #fff; text-decoration: none;
+  font-size: 0.9rem; transition: filter 0.2s ease;
+}
+.detail-file-link.download { background: var(--accent-rose); }
+.detail-file-link:hover { filter: brightness(1.05); }
+.note-pdf-preview {
+  width: 100%; min-height: 420px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); margin-top: 10px;
+}
+.hint-text {
+  margin-top: 6px; font-size: 0.85rem; color: var(--text-muted);
+}
+.note-file-tag {
+  font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px;
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
