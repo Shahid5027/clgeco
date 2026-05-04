@@ -49,6 +49,9 @@ def get_transcript_data(video_id: str):
         api = YouTubeTranscriptApi()
         return api.fetch(video_id, languages=("en", "en-US", "en-IN", "hi")).to_raw_data()
     except Exception as e:
+        error_msg = str(e).lower()
+        if "blocking requests from your ip" in error_msg or "cloud provider" in error_msg or "vercel" in error_msg:
+            raise ValueError("YouTube blocks automated transcript fetching from Vercel servers. Please use the 'Text' or 'Gemini' tab to paste your content instead.")
         raise ValueError(f"No captions found. Error: {str(e)}")
 
 def extract_pdf_text(filepath: str) -> str:
