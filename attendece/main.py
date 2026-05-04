@@ -13,7 +13,7 @@ app = Flask(__name__)
 attendance_file = "attendance.csv"
 device_registry_file = "device_registry.csv"
 users_file = "users.csv"
-qr_expiry_seconds = 5
+qr_expiry_seconds = 15
 active_tokens = {}
 
 # HTML Templates
