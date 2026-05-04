@@ -20,7 +20,7 @@ def require_login():
     
     if request.endpoint not in allowed_endpoints and not request.path.startswith('/static'):
         if not session.get('role'):
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.login', next=request.url))
 
 @app.route('/')
 def index():

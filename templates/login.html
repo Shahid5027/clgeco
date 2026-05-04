@@ -18,6 +18,7 @@
             {% endif %}
 
             <form method="POST" action="">
+                <input type="hidden" name="next" value="{{ next or '' }}">
                 <div class="form-group border-block" style="padding: 20px;">
                     <label class="form-label">IDENTITY_NODE</label>
                     <input type="text" name="username" class="form-input" required placeholder="[ ID OR EMAIL ]">

@@ -263,44 +263,14 @@ def submit(token):
     if token not in active_tokens:
         return render_template_string(SUCCESS_TEMPLATE, message="❌ QR Code expired or invalid.")
 
-    device_id = get_device_id(request)
-    conn = get_db()
-    c = conn.cursor()
-
-    c.execute('SELECT usn FROM Devices WHERE device_id = ?', (device_id,))
-    existing_device = c.fetchone()
-    
-    if existing_device:
-        saved_usn = existing_device['usn']
-        session = datetime.now().strftime("%d-%m-%Y") + " (" + get_current_session() + ")"
-        conn.close()
-        return mark_attendance(saved_usn, session, device_id, token)
-
-    if request.method == "POST":
-        suffix = request.form.get("usn").strip().upper()
-        password = request.form.get("password").strip()
-        usn = f"1AM24EC{suffix}"
-
-        c.execute('SELECT usn FROM Users WHERE usn = ? AND password = ?', (usn, password))
-        valid_user = c.fetchone()
+    role = session.get('role')
+    if role != 'student':
+        return render_template_string(SUCCESS_TEMPLATE, message="❌ Only students can mark attendance.")
         
-        if not valid_user:
-            conn.close()
-            return render_template_string(LOGIN_TEMPLATE, msg="❌ Invalid USN or password")
-
-        # Check if another device is registered to this usn? Original CSV check handled that if device existed, 
-        # but here the device_id didn't exist in the DB, so it's fresh.
-        c.execute('INSERT INTO Devices (device_id, usn) VALUES (?, ?)', (device_id, usn))
-        conn.commit()
-
-        session = datetime.now().strftime("%d-%m-%Y") + " (" + get_current_session() + ")"
-        conn.close()
-        return mark_attendance(usn, session, device_id, token)
+    usn = session.get('id', '').upper()
+    current_sess = datetime.now().strftime("%d-%m-%Y") + " (" + get_current_session() + ")"
     
-    conn.close()
-    resp = make_response(render_template_string(LOGIN_TEMPLATE, msg=""))
-    resp.set_cookie("device_id", device_id, max_age=31536000)
-    return resp
+    return mark_attendance(usn, current_sess, "flask_session", token)
 
 @attendance_bp.route("/register", methods=["GET", "POST"])
 def register():
