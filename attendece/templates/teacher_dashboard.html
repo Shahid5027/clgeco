@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Left: Class Schedule -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Teacher Dashboard</h4>
+            </div>
+            <div class="card-body">
+                <h5 class="mb-3">Class Schedule</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Hour</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for hour, details in schedule.items() %}
+                            <tr class="{% if hour == current_hour %}table-success{% endif %}">
+                                <td>{{ details.name }}</td>
+                                <td>{{ details.start }} - {{ details.end }}</td>
+                                <td>
+                                    {% if hour == current_hour %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: QR Generator -->
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">QR Code Generator</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if current_hour %}
+                    <p class="text-success fw-bold">
+                        Current Hour: {{ schedule[current_hour].name }}
+                    </p>
+                    <div id="qr-container">
+                        <p class="text-muted">Click below to generate QR code for attendance</p>
+                        <button id="generate-qr-btn" class="btn btn-primary">Generate QR Code</button>
+                    </div>
+                {% else %}
+                    <p class="text-warning fw-bold">No active class hour</p>
+                    <p class="text-muted">QR codes can only be generated during class hours</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const qrContainer = document.getElementById('qr-container');
+
+    function attachGenerateEvent() {
+        const generateBtn = document.getElementById('generate-qr-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', generateQR);
+        }
+    }
+
+    function generateQR() {
+        fetch('/generate_qr')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                qrContainer.innerHTML = `
+                    <h6 class="mb-3">${data.hour_name}</h6>
+                    <img src="${data.qr_code}" alt="QR Code" class="img-fluid mb-3 shadow" style="max-width: 220px;">
+                    <p>Time remaining: 
+                        <span id="countdown" class="badge bg-warning text-dark"></span>
+                    </p>
+                    <button id="generate-qr-btn" class="btn btn-primary mt-2">Generate New QR</button>
+                `;
+
+                // Start countdown
+                startCountdown(data.expiry_time, 'countdown', function() {
+                    qrContainer.innerHTML = `
+                        <p class="text-danger fw-bold">QR Code Expired</p>
+                        <button id="generate-qr-btn" class="btn btn-primary">Generate New QR</button>
+                    `;
+                    attachGenerateEvent();
+                });
+
+                attachGenerateEvent();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to generate QR code');
+            });
+    }
+
+    attachGenerateEvent();
+});
+</script>
+{% endblock %}
