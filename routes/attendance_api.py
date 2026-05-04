@@ -1,6 +1,6 @@
 import sqlite3
 import qrcode
-from flask import Blueprint, render_template_string, request, make_response, current_app
+from flask import Blueprint, render_template_string, request, make_response, current_app, session, redirect, url_for, flash
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import base64
@@ -186,6 +186,10 @@ def get_current_session():
 # Flask Routes
 @attendance_bp.route("/")
 def qr_page():
+    if session.get('role') not in ['faculty', 'admin']:
+        flash("Unauthorized access. Only faculty can generate attendance QRs.")
+        return redirect(url_for('index'))
+        
     init_db()  # Ensure database is initialized before any access
     cleanup_tokens()
     token = generate_qr_token()

@@ -4,91 +4,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>College Ecosystem Dashboard</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 600px;
-            width: 100%;
-        }
-
-        h1 {
-            margin-bottom: 20px;
-            color: #2c3e50;
-        }
-
-        p {
-            margin-bottom: 30px;
-            color: #7f8c8d;
-        }
-
-        .nav-links {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .nav-button {
-            padding: 15px 20px;
-            border: none;
-            border-radius: 8px;
-            background-color: #3498db;
-            color: white;
-            text-decoration: none;
-            font-size: 18px;
-            font-weight: bold;
-            transition: background 0.3s ease;
-        }
-
-        .nav-button:hover {
-            background-color: #2980b9;
-        }
-
-        .nav-button.attendance {
-            background-color: #e74c3c;
-        }
-
-        .nav-button.attendance:hover {
-            background-color: #c0392b;
-        }
-
-        .nav-button.notes {
-            background-color: #2ecc71;
-        }
-
-        .nav-button.notes:hover {
-            background-color: #27ae60;
-        }
-    </style>
+    <title>DASHBOARD | Ecosystem</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
-    <div class="container">
-        <h1>College Ecosystem</h1>
-        <p>Welcome to the unified campus portal. Select an application to begin.</p>
-        <div class="nav-links">
-            <a href="/attendance/" class="nav-button attendance">📋 Attendance System</a>
-            <a href="/study/" class="nav-button">📚 AI Study Assistant</a>
-            <a href="/notes" class="nav-button notes">📝 Peer Notes Hub</a>
+    <!-- Top System Ticker -->
+    <div class="ticker-wrap">
+        <div class="ticker">
+            SYSTEM: OPERATIONAL — ALL NODES SECURE — ROLE: [{{ session.get('role', 'GUEST') | upper }}] — NO OUTSTANDING
+            ALERTS — SYSTEM: OPERATIONAL — ALL NODES SECURE — ROLE: [{{ session.get('role', 'GUEST') | upper }}] — NO
+            OUTSTANDING ALERTS —
         </div>
     </div>
+
+    <!-- Main Sticky Nav -->
+    <nav class="nav-minimal">
+        <a href="/" class="nav-brand">ECOSYSTEM</a>
+        <div>
+            <span class="nav-role">ACCESS: {{ session.get('role', 'UNKNOWN') | upper }}</span>
+            <a href="/logout" class="nav-logout">LOGOUT_SESSION</a>
+        </div>
+    </nav>
+
+    <div class="dashboard-wrapper">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-message observe-me border-block">
+            {{ messages[0] }}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Hero Title -->
+        <h1 class="dashboard-header observe-me">
+            WELCOME TO THE COMMAND CENTER.
+        </h1>
+
+        <!-- Feature Grid -->
+        <div class="module-grid">
+
+            {% if session.get('role') in ['admin', 'faculty'] %}
+            <a href="/attendance/" class="module-card accent observe-me">
+                <div>
+                    <h2 class="module-title">QR_GEN</h2>
+                    <span class="module-desc border-bottom">FACULTY ONLY</span>
+                </div>
+                <div class="module-action">↳ INITIATE</div>
+            </a>
+            {% endif %}
+
+            {% if session.get('role') in ['admin', 'student'] %}
+            <a href="/study/" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title">STUDY_AI</h2>
+                    <span class="module-desc border-bottom">COGNITIVE ASSISTANT</span>
+                </div>
+                <div class="module-action">↳ LAUNCH</div>
+            </a>
+            {% endif %}
+
+            {% if session.get('role') in ['admin', 'student', 'faculty'] %}
+            <a href="/notes" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title">DB_NOTES</h2>
+                    <span class="module-desc border-bottom">PEER REPOSITORY</span>
+                </div>
+                <div class="module-action">↳ ACCESS</div>
+            </a>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <script>
+        // Vanilla Intersection Observer for Motion
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, index * 100); // slight stagger
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.observe-me').forEach((el) => {
+            el.classList.add('reveal');
+            observer.observe(el);
+        });
+    </script>
 </body>
 
 </html>
