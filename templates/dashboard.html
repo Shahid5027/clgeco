@@ -53,6 +53,14 @@
                 </div>
                 <div class="module-action">↳ INITIATE</div>
             </a>
+            {% elif session.get('role') == 'student' %}
+            <a href="/attendance/" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title">ATTENDANCE</h2>
+                    <span class="module-desc border-bottom">MY RECORDS</span>
+                </div>
+                <div class="module-action">↳ VIEW</div>
+            </a>
             {% endif %}
 
             {% if session.get('role') in ['admin', 'student'] %}

@@ -3,8 +3,12 @@ from flask import Blueprint, render_template, request, session, redirect, url_fo
 auth_bp = Blueprint('auth', __name__)
 
 STUDENT_PASSWORD = 'student123'
-FACULTY_CREDENTIALS = {'faculty@amcec.edu': 'faculty123'}
-ADMIN_CREDENTIALS = {'admin@amcec.edu': 'admin123'}
+FACULTY_CREDENTIALS = {
+    'faculty@amcec.edu': 'faculty123',
+    'teacher': 'teacher123',
+    'teacher@amcec.edu': 'teacher123'
+}
+ADMIN_CREDENTIALS = {'admin@amcec.edu': 'admin123', 'admin': 'admin123'}
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():

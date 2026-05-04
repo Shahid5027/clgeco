@@ -13,7 +13,10 @@ attendance_bp = Blueprint('attendance', __name__)
 qr_expiry_seconds = 5
 active_tokens = {}
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'database', 'attendance.db')
+if os.environ.get('VERCEL'):
+    DB_PATH = '/tmp/attendance.db'
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'database', 'attendance.db')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -143,6 +146,49 @@ SUCCESS_TEMPLATE = """
 <h2>{{ message }}</h2>
 """
 
+STUDENT_ATTENDANCE_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Attendance</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: 'Inter', sans-serif; text-align: center; margin-top: 50px; background-color: #f9f9f9; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; }
+        th { background-color: #f4f4f4; font-weight: bold; }
+        tr:hover { background-color: #f1f1f1; }
+        .back-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">&larr; Back to Dashboard</a>
+        <h2>Attendance Record</h2>
+        <p><strong>USN:</strong> {{ usn }}</p>
+        <table>
+            <thead>
+                <tr><th>Session</th><th>Status</th><th>Date & Time</th></tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row['session'] }}</td>
+                    <td style="color: green; font-weight: bold;">{{ row['status'] }}</td>
+                    <td>{{ row['timestamp'] }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="text-align: center;">No attendance records found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+"""
+
 # Utility Functions
 def generate_qr_token():
     token = str(uuid.uuid4())
@@ -186,6 +232,16 @@ def get_current_session():
 # Flask Routes
 @attendance_bp.route("/")
 def qr_page():
+    if session.get('role') == 'student':
+        init_db()
+        conn = get_db()
+        c = conn.cursor()
+        usn = session.get('id', '').upper()
+        c.execute('SELECT * FROM Attendance WHERE usn = ? ORDER BY timestamp DESC', (usn,))
+        rows = c.fetchall()
+        conn.close()
+        return render_template_string(STUDENT_ATTENDANCE_TEMPLATE, usn=usn, rows=rows)
+
     if session.get('role') not in ['faculty', 'admin']:
         flash("Unauthorized access. Only faculty can generate attendance QRs.")
         return redirect(url_for('index'))
