@@ -331,7 +331,7 @@
         fd.append('gen_mode', currentGenMode);
 
         try {
-            const res = await fetch('/generate', {method:'POST', body:fd});
+            const res = await fetch('/study/generate', {method:'POST', body:fd});
             const d = await res.json();
             
             if(d.status === 'success') {
@@ -578,7 +578,7 @@
         i.value = ''; box.scrollTop = box.scrollHeight;
 
         try {
-            const res = await fetch('/chat', {
+            const res = await fetch('/study/chat', {
                 method:'POST', 
                 headers:{'Content-Type':'application/json'}, 
                 body:JSON.stringify({session_id:sessId, message:msg, mode:chatMode})

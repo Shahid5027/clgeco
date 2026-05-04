@@ -13,7 +13,7 @@ from PyPDF2 import PdfReader
 # CONFIGURATION
 # -------------------------------------------------------------
 # ⚠️ PASTE YOUR API KEY HERE
-GENAI_API_KEY = "AIzaSyBXv4JHyil1zHuNWhtE6OOAa1Y72SnMON8" 
+GENAI_API_KEY = "AIzaSyAgvlA3B41QoqqF2eBbcAfWhVM3P6tlv94" 
 
 try:
     genai.configure(api_key=GENAI_API_KEY)
