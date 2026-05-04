@@ -1,1 +1,5 @@
-roll_number,date,hour,timestamp,session_id
+USN,30-06 (1st Hour),01-07 (1st Hour),01-07 (5th Hour),01-07 (6th Hour),04-07 (7th Hour),09-08 (5th Hour),04-05 (4th Hour)
+1AM24EC141,,,P,A,A,A,A
+1AM24EC143,P,P,A,P,P,P,P
+1AM24EC162,,,P,P,A,A,A
+1AM24EC168,,,,P,A,A,P

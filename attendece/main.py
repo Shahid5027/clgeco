@@ -1,399 +1,279 @@
-# app.py
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import pandas as pd
 import qrcode
-import os
-import csv
-from datetime import datetime, timedelta, time as dt_time
-from io import BytesIO
+import pandas as pd
+from flask import Flask, render_template_string, request, make_response, redirect
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import base64
+from io import BytesIO
 import uuid
-import json
-import threading
+import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SESSION_SECRET', 'your-secret-key-here')
 
-# Hardcoded teacher credentials (override with env vars if desired)
-TEACHER_USERNAME = os.environ.get('TEACHER_USERNAME', 'teacher')
-TEACHER_PASSWORD = os.environ.get('TEACHER_PASSWORD', 'password123')
+attendance_file = "attendance.csv"
+device_registry_file = "device_registry.csv"
+users_file = "users.csv"
+qr_expiry_seconds = 5
+active_tokens = {}
 
-# Class prefix for roll numbers
-ROLL_NUMBER_PREFIX = os.environ.get('ROLL_NUMBER_PREFIX', '1AM24EC')
+# HTML Templates
+QR_TEMPLATE = """
+<!doctype html>
+<html>
+<head>
+    <title>QR Attendance</title>
+    <meta http-equiv="refresh" content="{{ expiry }}">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        #countdown { font-size: 20px; font-weight: bold; color: #dc3545; margin-top: 20px; }
+        #nextqr { font-size: 16px; color: #888; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Scan this QR code. Valid for <span id="seconds">{{ expiry }}</span> seconds.</h2>
+    <img id="qr-img" src="data:image/png;base64,{{ qr }}">
+    <div id="countdown">⏳ QR expires in: {{ expiry }} seconds</div>
+    <div id="nextqr"></div>
 
-# Class schedule (store times as "HH:MM" strings) - modify to match real schedule
-CLASS_SCHEDULE = {
-    1: {"start": "00:15", "end": "10:10", "name": "1st Hour"},
-    2: {"start": "10:10", "end": "11:05", "name": "2nd Hour"},
-    3: {"start": "11:20", "end": "12:15", "name": "3rd Hour"},
-    4: {"start": "12:15", "end": "13:10", "name": "4th Hour"},
-    5: {"start": "14:00", "end": "14:55", "name": "5th Hour"},
-    6: {"start": "14:55", "end": "15:50", "name": "6th Hour"},
-    7: {"start": "15:50", "end": "23:59", "name": "7th Hour"}
-}
+    <script>
+        let timer = {{ expiry }};
+        const countdown = document.getElementById('countdown');
+        const nextQR = document.getElementById('nextqr');
+        const qrImg = document.getElementById('qr-img');
+        const secondsSpan = document.getElementById('seconds');
 
-# QR code validity duration in seconds (adjust as needed)
-QR_VALIDITY_SECONDS = int(os.environ.get('QR_VALIDITY_SECONDS', 5))
+        const interval = setInterval(() => {
+            timer--;
+            secondsSpan.textContent = timer;
 
-# In-memory QR session store and lock for thread-safety
-active_qr_sessions = {}
-active_qr_lock = threading.Lock()
+            if (timer > 0) {
+                countdown.textContent = `⏳ QR expires in: ${timer} second${timer !== 1 ? 's' : ''}`;
+            } else {
+                countdown.textContent = "❌ QR Code Expired!";
+                qrImg.style.display = "none";
+                clearInterval(interval);
 
-# Filenames (can be changed)
-USERS_CSV = 'users.csv'
-ATTENDANCE_CSV = 'attendance.csv'
+                let regen = 5;
+                nextQR.textContent = `🔄 Next QR in ${regen} seconds...`;
 
+                const regenInterval = setInterval(() => {
+                    regen--;
+                    nextQR.textContent = `🔄 Next QR in ${regen} second${regen !== 1 ? 's' : ''}...`;
+                    if (regen === 0) {
+                        clearInterval(regenInterval);
+                        location.reload(); // Auto-refresh the page to load new QR
+                    }
+                }, 1000);
+            }
+        }, 1000);
+    </script>
+    <footer style="margin-top: 40px; font-size: 14px; color: #666;">
+        <hr style="width: 60%; border: 0.5px solid #ccc;">
+        <div style="margin-top: 10px;">
+            Developed by <strong>Team RAGE</strong> | Department of ECE | AMC Engineering College
+        </div>
+    </footer>
 
-# -------------------------
-# Utility & IO functions
-# -------------------------
-def init_csv_files():
-    """Initialize CSV files if they don't exist (with headers)."""
-    if not os.path.exists(USERS_CSV):
-        with open(USERS_CSV, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['roll_suffix', 'full_roll_number', 'registration_date'])
+</body>
+</html>
+"""
 
-    if not os.path.exists(ATTENDANCE_CSV):
-        with open(ATTENDANCE_CSV, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['roll_number', 'date', 'hour', 'timestamp', 'session_id'])
+LOGIN_TEMPLATE = """
+<!doctype html>
+<title>Login</title>
+<h2>Login to mark attendance</h2>
+<form method="post">
+  <label>1AM24EC</label><input type="text" name="usn" placeholder="e.g., 143" required><br>
+  <label>Password</label><input type="password" name="password" required><br>
+  <input type="submit" value="Login">
+</form>
+<p>{{ msg }}</p>
+<p>No account? <a href="/register">Register here</a></p>
+"""
 
+REGISTER_TEMPLATE = """
+<!doctype html>
+<title>Register</title>
+<h2>Create your account</h2>
+<form method="post">
+  <label>1AM24EC</label><input type="text" name="usn" placeholder="e.g., 143" required><br>
+  <label>Password</label><input type="password" name="password" required><br>
+  <input type="submit" value="Register">
+</form>
+<p>{{ msg }}</p>
+<p>Already registered? <a href="/">Login</a></p>
+"""
 
-def parse_time_str(tstr):
-    """Parse 'HH:MM' -> datetime.time, returns None if invalid."""
-    try:
-        hh, mm = tstr.split(':')
-        return dt_time(int(hh), int(mm))
-    except Exception:
-        return None
+SUCCESS_TEMPLATE = """
+<!doctype html>
+<title>Success</title>
+<h2>{{ message }}</h2>
+"""
 
+# Utility Functions
+def generate_qr_token():
+    token = str(uuid.uuid4())
+    active_tokens[token] = datetime.utcnow()
+    return token
 
-def get_current_class_hour():
-    """Return current hour index (int) if within any scheduled hour, otherwise None."""
-    now = datetime.now()
-    now_time = now.time()
+def cleanup_tokens():
+    now = datetime.utcnow()
+    for token in list(active_tokens.keys()):
+        if now - active_tokens[token] > timedelta(seconds=qr_expiry_seconds):
+            del active_tokens[token]
 
-    for hour, sch in CLASS_SCHEDULE.items():
-        start_t = parse_time_str(sch['start'])
-        end_t = parse_time_str(sch['end'])
-        if start_t is None or end_t is None:
-            continue
+def get_device_id(req):
+    device_id = req.cookies.get("device_id")
+    if not device_id:
+        device_id = str(uuid.uuid4())
+    return device_id
 
-        # Handle ranges that could cross midnight - assume end >= start for simplicity
-        if start_t <= now_time <= end_t:
-            return hour
-    return None
+def get_current_session():
+    now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
+    current_time = now_ist.time()
 
+    schedule = [
+        ("09:15", "10:10", "1st Hour"),
+        ("10:10", "11:05", "2nd Hour"),
+        ("11:05", "11:20", "Short Break"),
+        ("11:20", "12:15", "3rd Hour"),
+        ("12:15", "13:10", "4th Hour"),
+        ("13:10", "14:00", "Lunch Break"),
+        ("14:00", "14:55", "5th Hour"),
+        ("14:55", "15:50", "6th Hour"),
+        ("15:50", "16:45", "7th Hour")
+    ]
 
-def load_users():
-    """Load users.csv into a DataFrame with safe defaults."""
-    if os.path.exists(USERS_CSV):
-        try:
-            df = pd.read_csv(USERS_CSV, dtype=str)
-            # Ensure headers exist
-            expected_cols = ['roll_suffix', 'full_roll_number', 'registration_date']
-            for c in expected_cols:
-                if c not in df.columns:
-                    df[c] = ''
-            return df.fillna('')
-        except Exception:
-            return pd.DataFrame(columns=['roll_suffix', 'full_roll_number', 'registration_date'])
-    return pd.DataFrame(columns=['roll_suffix', 'full_roll_number', 'registration_date'])
+    for start, end, label in schedule:
+        if datetime.strptime(start, "%H:%M").time() <= current_time < datetime.strptime(end, "%H:%M").time():
+            return label
 
-
-def save_user(roll_suffix):
-    """Append a user to the users.csv"""
-    full_roll_number = f"{ROLL_NUMBER_PREFIX}{roll_suffix}"
-    registration_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(USERS_CSV, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow([roll_suffix, full_roll_number, registration_date])
-
-
-def load_attendance():
-    """Load attendance.csv safely."""
-    if os.path.exists(ATTENDANCE_CSV):
-        try:
-            df = pd.read_csv(ATTENDANCE_CSV, dtype=str)
-            expected_cols = ['roll_number', 'date', 'hour', 'timestamp', 'session_id']
-            for c in expected_cols:
-                if c not in df.columns:
-                    df[c] = ''
-            return df.fillna('')
-        except Exception:
-            return pd.DataFrame(columns=['roll_number', 'date', 'hour', 'timestamp', 'session_id'])
-    return pd.DataFrame(columns=['roll_number', 'date', 'hour', 'timestamp', 'session_id'])
-
-
-def save_attendance(roll_number, hour, session_id):
-    """Append attendance record."""
-    date = datetime.now().strftime("%Y-%m-%d")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(ATTENDANCE_CSV, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow([roll_number, date, str(hour), timestamp, session_id])
-
-
-def generate_qr_code_base64(data_str):
-    """Return data URI for QR PNG image representing data_str."""
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(data_str)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = BytesIO()
-    img.save(buffer, format='PNG')
-    buffer.seek(0)
-    img_str = base64.b64encode(buffer.getvalue()).decode()
-    return f"data:image/png;base64,{img_str}"
-
-
-# -------------------------
-# Routes
-# -------------------------
-@app.route('/')
-def index():
-    return render_template('base.html')
+    return "⚠️ Not within any class hour."
 
 
-@app.route('/teacher_login', methods=['GET', 'POST'])
-def teacher_login():
-    if request.method == 'POST':
-        username = (request.form.get('username') or '').strip()
-        password = (request.form.get('password') or '').strip()
 
-        if username == TEACHER_USERNAME and password == TEACHER_PASSWORD:
-            session.clear()
-            session['user_type'] = 'teacher'
-            session['username'] = username
-            return redirect(url_for('teacher_dashboard'))
-        else:
-            return render_template('teacher_login.html', error='Invalid credentials')
-
-    return render_template('teacher_login.html')
-
-
-@app.route('/teacher_dashboard')
-def teacher_dashboard():
-    if session.get('user_type') != 'teacher':
-        return redirect(url_for('teacher_login'))
-
-    current_hour = get_current_class_hour()
-    return render_template('teacher_dashboard.html', current_hour=current_hour, schedule=CLASS_SCHEDULE)
-
-
-@app.route('/generate_qr', methods=['GET'])
-def generate_qr():
-    """Teacher-only endpoint to create a short-lived QR session and return QR PNG (base64)."""
-    if session.get('user_type') != 'teacher':
-        return redirect(url_for('teacher_login'))
-
-    current_hour = get_current_class_hour()
-    if not current_hour:
-        return jsonify({'error': 'No active class hour'})
-
-    session_id = str(uuid.uuid4())
-    expiry_time = datetime.now() + timedelta(seconds=QR_VALIDITY_SECONDS)
-
-    with active_qr_lock:
-        # Save session info; use list for JSON-serializable used_by if later returned
-        active_qr_sessions[session_id] = {
-            'hour': int(current_hour),
-            'expiry': expiry_time,
-            'used_by': set()
-        }
-
-        # cleanup expired
-        now = datetime.now()
-        expired = [sid for sid, data in active_qr_sessions.items() if data['expiry'] < now]
-        for sid in expired:
-            del active_qr_sessions[sid]
-
-    qr_payload = {
-        'session_id': session_id,
-        'hour': int(current_hour),
-        'timestamp': datetime.now().isoformat()
-    }
-    qr_code_img = generate_qr_code_base64(json.dumps(qr_payload))
-
-    return jsonify({
-        'qr_code': qr_code_img,
-        'session_id': session_id,
-        'hour': int(current_hour),
-        'expiry_time': expiry_time.isoformat(),
-        'hour_name': CLASS_SCHEDULE[int(current_hour)]['name']
-    })
-
-
-@app.route('/student_register', methods=['GET', 'POST'])
-def student_register():
-    if request.method == 'POST':
-        roll_suffix = (request.form.get('roll_suffix') or '').strip()
-
-        # Validate: exactly 3 digits
-        if not roll_suffix.isdigit() or len(roll_suffix) != 3:
-            return render_template('register.html', error='Roll number suffix must be exactly 3 digits', prefix=ROLL_NUMBER_PREFIX)
-
-        users_df = load_users()
-        # ensure comparing strings
-        if roll_suffix in users_df['roll_suffix'].astype(str).values:
-            return render_template('register.html', error='Roll number already registered', prefix=ROLL_NUMBER_PREFIX)
-
-        save_user(roll_suffix)
-        return render_template('success.html', message='Registration successful! You can now login.')
-
-    return render_template('register.html', prefix=ROLL_NUMBER_PREFIX)
-
-
-@app.route('/student_login', methods=['GET', 'POST'])
-def student_login():
-    if request.method == 'POST':
-        roll_suffix = (request.form.get('roll_suffix') or '').strip()
-
-        if not roll_suffix.isdigit() or len(roll_suffix) != 3:
-            return render_template('student_login.html', error='Enter a valid 3-digit roll suffix', prefix=ROLL_NUMBER_PREFIX)
-
-        users_df = load_users()
-        if roll_suffix not in users_df['roll_suffix'].astype(str).values:
-            return render_template('student_login.html', error='Roll number not found. Please register first.', prefix=ROLL_NUMBER_PREFIX)
-
-        session.clear()
-        session['user_type'] = 'student'
-        session['roll_suffix'] = roll_suffix
-        session['full_roll_number'] = f"{ROLL_NUMBER_PREFIX}{roll_suffix}"
-        return redirect(url_for('qr_page'))
-
-    return render_template('student_login.html', prefix=ROLL_NUMBER_PREFIX)
-
-
-@app.route('/qr_page')
+# Flask Routes
+@app.route("/")
 def qr_page():
-    if session.get('user_type') != 'student':
-        return redirect(url_for('student_login'))
+    cleanup_tokens()
+    token = generate_qr_token()
+    url = f"https://{request.host}/submit/{token}"
+    qr_img = qrcode.make(url)
+    buffered = BytesIO()
+    qr_img.save(buffered, format="PNG")
+    qr_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    return render_template_string(QR_TEMPLATE, qr=qr_str, expiry=qr_expiry_seconds)
 
-    current_hour = get_current_class_hour()
-    return render_template('qr_page.html',
-                           current_hour=current_hour,
-                           schedule=CLASS_SCHEDULE,
-                           roll_number=session.get('full_roll_number'))
+@app.route("/submit/<token>", methods=["GET", "POST"])
+def submit(token):
+    cleanup_tokens()
+    if token not in active_tokens:
+        return render_template_string(SUCCESS_TEMPLATE, message="❌ QR Code expired or invalid.")
 
+    device_id = get_device_id(request)
+    usn_cookie = request.cookies.get("user_usn")
 
-@app.route('/mark_attendance', methods=['POST'])
-def mark_attendance():
-    if session.get('user_type') != 'student':
-        return jsonify({'error': 'Unauthorized'}), 401
+    if os.path.exists(device_registry_file):
+        reg_df = pd.read_csv(device_registry_file)
+    else:
+        reg_df = pd.DataFrame(columns=["DeviceID", "USN"])
+
+    existing = reg_df[reg_df["DeviceID"] == device_id]
+    if not existing.empty:
+        saved_usn = existing.iloc[0]["USN"]
+        session = datetime.now().strftime("%d-%m") + " (" + get_current_session() + ")"
+        return mark_attendance(saved_usn, session, device_id, token)
+
+    if request.method == "POST":
+        suffix = request.form.get("usn").strip().upper()
+        password = request.form.get("password").strip()
+        usn = f"1AM24EC{suffix}"
+
+        if os.path.exists(users_file):
+            users_df = pd.read_csv(users_file)
+            valid_user = users_df[(users_df["USN"] == usn) & (users_df["Password"] == password)]
+            if valid_user.empty:
+                return render_template_string(LOGIN_TEMPLATE, msg="❌ Invalid USN or password")
+        else:
+            return render_template_string(LOGIN_TEMPLATE, msg="❌ Users file not found")
+
+        existing = reg_df[reg_df["DeviceID"] == device_id]
+        if not existing.empty and existing.iloc[0]["USN"] != usn:
+            return render_template_string(SUCCESS_TEMPLATE, message=f"❌ Device already linked to {existing.iloc[0]['USN']}")
+
+        reg_df = pd.concat([reg_df, pd.DataFrame([[device_id, usn]], columns=["DeviceID", "USN"])]).drop_duplicates()
+        reg_df.to_csv(device_registry_file, index=False)
+
+        session = datetime.now().strftime("%d-%m") + " (" + get_current_session() + ")"
+        return mark_attendance(usn, session, device_id, token)
+
+    resp = make_response(render_template_string(LOGIN_TEMPLATE, msg=""))
+    resp.set_cookie("device_id", device_id, max_age=31536000)
+    return resp
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        suffix = request.form.get("usn").strip().upper()
+        password = request.form.get("password").strip()
+        usn = f"1AM24EC{suffix}"
+
+        if os.path.exists(users_file):
+            users_df = pd.read_csv(users_file)
+        else:
+            users_df = pd.DataFrame(columns=["USN", "Password"])
+
+        if usn in users_df["USN"].values:
+            return render_template_string(REGISTER_TEMPLATE, msg="⚠️ USN already registered.")
+
+        users_df = pd.concat([users_df, pd.DataFrame([[usn, password]], columns=["USN", "Password"])])
+        users_df.to_csv(users_file, index=False)
+        return render_template_string(SUCCESS_TEMPLATE, message="✅ Registration successful. You can now log in.")
+
+    return render_template_string(REGISTER_TEMPLATE, msg="")
+
+def mark_attendance(usn, session, device_id, token):
+    if "⚠️" in session or session == "No Ongoing Class":
+        del active_tokens[token]
+        return make_response(render_template_string(
+            SUCCESS_TEMPLATE, 
+            message="❌ Not in class hours. Attendance blocked. Please contact your instructor if this is a mistake."
+        ))
 
     try:
-        qr_data_str = request.form.get('qr_data')
-        if not qr_data_str:
-            return jsonify({'error': 'qr_data required'}), 400
+        df = pd.read_csv(attendance_file)
+    except FileNotFoundError:
+        df = pd.DataFrame(columns=["USN"])
 
-        qr_data = json.loads(qr_data_str)
-        session_id = qr_data.get('session_id')
-        hour = int(qr_data.get('hour'))
+    if usn not in df["USN"].values:
+        df = pd.concat([df, pd.DataFrame([[usn]], columns=["USN"])])
 
-        with active_qr_lock:
-            if session_id not in active_qr_sessions:
-                return jsonify({'error': 'Invalid or expired QR code'}), 400
+    if session not in df.columns:
+        df[session] = 'A'
 
-            session_info = active_qr_sessions[session_id]
+    already_marked = df.loc[df["USN"] == usn, session].values[0] == 'P'
 
-            # check expiry (session_info['expiry'] is datetime)
-            if datetime.now() > session_info['expiry']:
-                # cleanup
-                del active_qr_sessions[session_id]
-                return jsonify({'error': 'QR code has expired'}), 400
-
-            roll_number = session.get('full_roll_number')
-            if not roll_number:
-                return jsonify({'error': 'Student not logged in'}), 401
-
-            # prevent double marking for same QR session
-            if roll_number in session_info['used_by']:
-                return jsonify({'error': 'Attendance already marked for this session'}), 400
-
-            # prevent marking for same hour today from CSV
-            attendance_df = load_attendance()
-            today = datetime.now().strftime("%Y-%m-%d")
-            if len(attendance_df) > 0:
-                existing = attendance_df[
-                    (attendance_df['roll_number'] == roll_number) &
-                    (attendance_df['date'] == today) &
-                    (attendance_df['hour'].astype(str) == str(hour))
-                ]
-                if len(existing) > 0:
-                    return jsonify({'error': 'Attendance already marked for this hour today'}), 400
-
-            # mark attendance
-            save_attendance(roll_number, hour, session_id)
-            session_info['used_by'].add(roll_number)
-
-        return jsonify({
-            'success': True,
-            'message': f'Attendance marked successfully for {CLASS_SCHEDULE.get(hour, {}).get("name", "Hour "+str(hour))}!'
-        })
-
-    except Exception as e:
-        # don't leak internal traceback in production
-        return jsonify({'error': f'Error processing attendance: {str(e)}'}), 500
-
-
-@app.route('/admin')
-def admin():
-    if session.get('user_type') != 'teacher':
-        return redirect(url_for('teacher_login'))
-
-    users_df = load_users()
-    attendance_df = load_attendance()
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    if len(attendance_df) > 0:
-        today_attendance = attendance_df[attendance_df['date'] == today]
+    if not already_marked:
+        df.loc[df["USN"] == usn, session] = 'P'
+        df = df.sort_values("USN")
+        df.to_csv(attendance_file, index=False)
+        msg = f"✅ {usn} marked Present for {session}"
     else:
-        today_attendance = pd.DataFrame(columns=['roll_number', 'date', 'hour', 'timestamp', 'session_id'])
+        msg = f"⚠️ {usn} already marked Present for {session}"
 
-    attendance_data = {}
-    for hour in range(1, len(CLASS_SCHEDULE) + 1):
-        hour_attendance = today_attendance[today_attendance['hour'].astype(str) == str(hour)] if len(today_attendance) > 0 else pd.DataFrame()
-        present_students = set(hour_attendance['roll_number'].tolist()) if len(hour_attendance) > 0 else set()
+    del active_tokens[token]
+    resp = make_response(render_template_string(SUCCESS_TEMPLATE, message=msg))
+    resp.set_cookie("device_id", device_id, max_age=31536000)
+    resp.set_cookie("user_usn", usn, max_age=31536000)
+    return resp
 
-        all_students = []
-        if len(users_df) > 0:
-            for _, user in users_df.iterrows():
-                roll_number = user['full_roll_number']
-                status = 'P' if roll_number in present_students else 'A'
-                all_students.append({
-                    'roll_number': roll_number,
-                    'status': status
-                })
-
-        all_students.sort(key=lambda x: x['roll_number'])
-        attendance_data[hour] = {
-            'students': all_students,
-            'hour_name': CLASS_SCHEDULE.get(hour, {}).get('name', f'Hour {hour}'),
-            'present_count': len(present_students),
-            'total_count': len(all_students)
-        }
-
-    return render_template('admin.html',
-                           attendance_data=attendance_data,
-                           today=today)
+@app.route("/admin")
+def admin():
+    if not os.path.exists(attendance_file):
+        return "No attendance data yet."
+    df = pd.read_csv(attendance_file)
+    return df.to_html(index=False)
 
 
-@app.route('/attend_confirm')
-def attend_confirm():
-    if session.get('user_type') != 'student':
-        return redirect(url_for('student_login'))
-    return render_template('attend_confirm.html')
-
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('index'))
-
-
-if __name__ == '__main__':
-    init_csv_files()
-    # debug=True only for development
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
