@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="College Ecosystem - Premium Notes Section for Students and Faculty">
   <title>Notes | College Ecosystem</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/notes_styles.css') }}">
 </head>
 <body>
 
@@ -129,6 +129,6 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="app.js"></script>
+<script src="{{ url_for('static', filename='js/notes_app.js') }}"></script>
 </body>
 </html>

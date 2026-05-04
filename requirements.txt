@@ -1,0 +1,6 @@
+Flask
+google-generativeai
+youtube-transcript-api
+PyPDF2
+qrcode
+pillow
