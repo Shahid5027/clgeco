@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DASHBOARD | Ecosystem</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    <!-- Top System Ticker -->
+    <div class="ticker-wrap">
+        <div class="ticker">
+            SYSTEM: OPERATIONAL — ALL NODES SECURE — ROLE: [{{ session.get('role', 'GUEST') | upper }}] — NO OUTSTANDING
+            ALERTS — SYSTEM: OPERATIONAL — ALL NODES SECURE — ROLE: [{{ session.get('role', 'GUEST') | upper }}] — NO
+            OUTSTANDING ALERTS —
+        </div>
+    </div>
+
+    <!-- Main Sticky Nav -->
+    <nav class="nav-minimal">
+        <a href="/" class="nav-brand">ECOSYSTEM</a>
+        <div>
+            <span class="nav-role">ACCESS: {{ session.get('role', 'UNKNOWN') | upper }}</span>
+            <a href="/logout" class="nav-logout">LOGOUT_SESSION</a>
+        </div>
+    </nav>
+
+    <div class="dashboard-wrapper">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-message observe-me border-block">
+            {{ messages[0] }}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Hero Title -->
+        <h1 class="dashboard-header observe-me">
+            WELCOME TO THE COMMAND CENTER.
+        </h1>
+
+        <!-- Feature Grid -->
+        <div class="module-grid">
+
+            {% if session.get('role') in ['admin', 'faculty'] %}
+            <a href="/attendance/" class="module-card accent observe-me">
+                <div>
+                    <h2 class="module-title">QR_GEN</h2>
+                    <span class="module-desc border-bottom">FACULTY ONLY</span>
+                </div>
+                <div class="module-action">↳ INITIATE</div>
+            </a>
+            {% endif %}
+
+            {% if session.get('role') == 'faculty' %}
+            <form action="/attendance/take_leave" method="POST" style="display: contents;">
+                <button type="submit" class="module-card observe-me" style="width:100%; border:none; text-align:left; font-family:inherit; cursor:pointer; appearance:none;">
+                    <div>
+                        <h2 class="module-title" style="color:#d9534f;">TAKE_LEAVE</h2>
+                        <span class="module-desc border-bottom">MARK AS ABSENT</span>
+                    </div>
+                    <div class="module-action">↳ SUBMIT</div>
+                </button>
+            </form>
+            {% endif %}
+
+            {% if session.get('role') == 'admin' %}
+            <a href="/attendance/admin" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title" style="color:#f0ad4e;">ADMIN_PANEL</h2>
+                    <span class="module-desc border-bottom">SYSTEM LOGS</span>
+                </div>
+                <div class="module-action">↳ VIEW</div>
+            </a>
+            {% endif %}
+
+            {% if session.get('role') == 'student' %}
+            <a href="/attendance/" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title">ATTENDANCE</h2>
+                    <span class="module-desc border-bottom">MY RECORDS</span>
+                </div>
+                <div class="module-action">↳ VIEW</div>
+            </a>
+            {% endif %}
+
+            {% if session.get('role') in ['admin', 'student'] %}
+            <a href="/study/" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title">STUDY_AI</h2>
+                    <span class="module-desc border-bottom">COGNITIVE ASSISTANT</span>
+                </div>
+                <div class="module-action">↳ LAUNCH</div>
+            </a>
+            {% endif %}
+
+            {% if session.get('role') in ['admin', 'student', 'faculty'] %}
+            <a href="/notes" class="module-card observe-me">
+                <div>
+                    <h2 class="module-title">DB_NOTES</h2>
+                    <span class="module-desc border-bottom">PEER REPOSITORY</span>
+                </div>
+                <div class="module-action">↳ ACCESS</div>
+            </a>
+            {% endif %}
+
+        </div>
+
+        <!-- TIMETABLE WIDGET -->
+        {% if session.get('role') in ['student', 'faculty'] %}
+        <div class="module-card observe-me" style="margin-top: 20px; display: block; border-left: 5px solid #000; box-shadow: none;">
+            <h2 class="module-title" style="margin-bottom: 15px;">TODAY'S SCHEDULE</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                {% if session.get('role') == 'student' %}
+                    <div style="padding: 10px; border: 1px solid #ccc;">
+                        <strong>09:15 - 10:10 (1st)</strong><br>
+                        Microcontrollers
+                    </div>
+                    <div style="padding: 10px; border: 1px solid #ccc;">
+                        <strong>10:10 - 11:05 (2nd)</strong><br>
+                        Signals & Systems
+                    </div>
+                    <div style="padding: 10px; border: 1px solid #ccc;">
+                        <strong>11:20 - 12:15 (3rd)</strong><br>
+                        Control Systems
+                    </div>
+                    <div style="padding: 10px; border: 1px solid #ccc;">
+                        <strong>12:15 - 13:10 (4th)</strong><br>
+                        Network Theory
+                    </div>
+                    <div style="padding: 10px; border: 1px solid #ccc;">
+                        <strong>14:00 - 15:50 (5th & 6th)</strong><br>
+                        Microcontrollers Lab
+                    </div>
+                    <div style="padding: 10px; border: 1px solid #ccc;">
+                        <strong>15:50 - 16:45 (7th)</strong><br>
+                        Project Phase 1
+                    </div>
+                {% elif session.get('role') == 'faculty' %}
+                    <div style="padding: 10px; border: 1px solid #000;">
+                        <strong>09:15 - 10:10 (1st)</strong><br>
+                        Microcontrollers — 4th Sem EC
+                    </div>
+                    <div style="padding: 10px; border: 1px solid #000;">
+                        <strong>11:20 - 12:15 (3rd)</strong><br>
+                        Microcontrollers — 4th Sem CS
+                    </div>
+                    <div style="padding: 10px; border: 1px solid #000;">
+                        <strong>14:00 - 15:50 (5th & 6th)</strong><br>
+                        Microcontrollers Lab — 4th Sem EC
+                    </div>
+                    <div style="padding: 10px; border: 1px dashed #ccc; color: #666;">
+                        <strong>Free Hours</strong><br>
+                        2nd, 4th, 7th Hour
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Vanilla Intersection Observer for Motion
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, index * 100); // slight stagger
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.observe-me').forEach((el) => {
+            el.classList.add('reveal');
+            observer.observe(el);
+        });
+    </script>
+</body>
+
+</html>
