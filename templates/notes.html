@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="College Ecosystem - Premium Notes Section for Students and Faculty">
+  <title>Notes | College Ecosystem</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/notes_styles.css') }}">
+</head>
+<body>
+<div class="dashboard-wrapper">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="header-content">
+      <div class="header-logo">
+        <span class="logo-icon">📝</span>
+        <h1>NotesHub</h1>
+      </div>
+      <div class="header-controls">
+        <span class="role-badge" id="role-badge">Student</span>
+        <button class="role-toggle-btn" id="role-toggle" onclick="toggleRole()">Switch Role</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Layout -->
+  <div class="dashboard-container">
+    <!-- Left Sidebar (30%) -->
+    <aside class="sidebar">
+      <!-- Upload Card -->
+      <div class="sidebar-card">
+        <div class="card-header">
+          <h3 class="card-title">📤 Upload Note</h3>
+        </div>
+        <button class="upload-btn" onclick="openAddModal()">Upload New Note</button>
+      </div>
+
+      <!-- Generated Quiz Card -->
+      <div class="sidebar-card">
+        <div class="card-header">
+          <h3 class="card-title">🎯 Quiz Generator</h3>
+        </div>
+        <button class="quiz-btn" onclick="openQuizModal()">Generate Quiz</button>
+      </div>
+
+      <!-- Additional Info Card -->
+      <div class="sidebar-card">
+        <div class="card-header">
+          <h3 class="card-title">📊 Stats</h3>
+        </div>
+        <div class="stats-content">
+          <div class="stat-item">
+            <span class="stat-label">Total Notes</span>
+            <span class="stat-value">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Favorites</span>
+            <span class="stat-value">—</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Main Content (70%) -->
+    <main class="main-content">
+      <!-- Page Title -->
+      <div class="page-header">
+        <h2 class="page-title">My Notes</h2>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="search-container">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search notes by title or subject..." oninput="handleSearch()">
+        </div>
+      </div>
+
+      <!-- Filter Buttons -->
+      <div class="filter-container">
+        <div class="filter-chips" id="filter-chips">
+          <button class="filter-chip active" data-filter="all" onclick="setFilter('all', this)">All</button>
+          <button class="filter-chip" data-filter="recent" onclick="setFilter('recent', this)">Recent</button>
+          <button class="filter-chip" data-filter="favorites" onclick="setFilter('favorites', this)">⭐ Favorites</button>
+          <button class="filter-chip" data-filter="Mathematics" onclick="setFilter('Mathematics', this)">Math</button>
+          <button class="filter-chip" data-filter="Science" onclick="setFilter('Science', this)">Science</button>
+          <button class="filter-chip" data-filter="Computer Science" onclick="setFilter('Computer Science', this)">CS</button>
+          <button class="filter-chip" data-filter="English" onclick="setFilter('English', this)">English</button>
+          <button class="filter-chip" data-filter="History" onclick="setFilter('History', this)">History</button>
+        </div>
+      </div>
+
+      <!-- Recently Viewed Section -->
+      <section class="recent-section" id="recent-section" style="display:none">
+        <div class="recent-header">
+          <h3 class="section-title">Recently Viewed</h3>
+          <button class="clear-btn" onclick="clearRecentlyViewed()">Clear</button>
+        </div>
+        <div class="recent-scroll" id="recent-scroll"></div>
+      </section>
+
+      <!-- Notes Grid -->
+      <div class="content-section">
+        <h3 class="section-title" id="grid-title">All Notes</h3>
+        <div class="notes-grid" id="notes-grid"></div>
+
+        <div class="empty-state" id="empty-state" style="display:none">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">No notes found</div>
+          <div class="empty-desc">Try adjusting your search or filters</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="detail-view" id="detail-view">
+  <header class="detail-header">
+    <button class="detail-back" onclick="closeDetail()">← Back to Notes</button>
+    <div class="detail-actions" id="detail-actions"></div>
+  </header>
+  <article class="detail-content" id="detail-content"></article>
+</div>
+
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAddModal()">✕</button>
+    <h2 class="modal-title" id="modal-title">Upload New Note</h2>
+    <form onsubmit="handleSubmitNote(event)">
+      <input type="hidden" id="edit-note-id" value="">
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input class="form-input" type="text" id="note-title-input" placeholder="e.g. Introduction to Calculus" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-select" id="note-subject-input" required>
+          <option value="">Select subject</option>
+          <option value="Mathematics">Mathematics</option>
+          <option value="Science">Science</option>
+          <option value="Computer Science">Computer Science</option>
+          <option value="English">English</option>
+          <option value="History">History</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Content</label>
+        <textarea class="form-textarea" id="note-content-input" placeholder="Write or paste your note content here..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Attach a PDF file</label>
+        <input class="form-input" type="file" id="note-file-input" accept="application/pdf" style="padding:10px">
+        <div class="hint-text">Only PDF files are supported for attachment.</div>
+      </div>
+      <button class="submit-btn" type="submit" id="submit-btn-text">Upload Note</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="quiz-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeQuizModal()">✕</button>
+    <h2 class="modal-title">📝 Generated Quiz</h2>
+    <div id="quiz-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="{{ url_for('static', filename='js/notes_app.js') }}"></script>
+</body>
+</html>

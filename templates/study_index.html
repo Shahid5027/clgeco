@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Study Module</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    textarea { width: 100%; min-height: 180px; }
+    .card { max-width: 900px; margin: auto; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Study Module</h1>
+    <p>Submit text and generate study material.</p>
+    <form id="study-form">
+      <input type="hidden" name="source_type" value="text">
+      <input type="hidden" name="gen_mode" value="standard">
+      <label>Persona</label>
+      <input name="style" value="Standard Tutor">
+      <label>Questions</label>
+      <input type="number" name="q_count" value="5">
+      <label>Text</label>
+      <textarea name="text_content" required></textarea>
+      <button type="submit">Generate</button>
+    </form>
+    <pre id="output"></pre>
+  </div>
+  <script>
+    document.getElementById("study-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch("{{ url_for('study.generate') }}", { method: "POST", body: formData });
+      const data = await res.json();
+      document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>
